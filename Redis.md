@@ -1,8 +1,6 @@
 # Redis
 <br>
 
------------------------
-
 ### Redis vs Memcached?
 
 <details>
