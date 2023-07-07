@@ -203,8 +203,133 @@ SSL과 TLS는 매우 비슷하기 때문에, 이 책에서는 SSL과 TLS 양쪽 
 
 <details>
    <summary> 답안 보기 (👈 Click)</summary>
+[참고: 자바 ORM 표준 JPA 프로그래밍 p.675]
 
-+ 
++ JPA로 애플리케이션을 개발할 때, 성능상 가장 주의해야 하는 것이 N+1문제다.
+  예제를 통해 N+1문제에 대해 알아보자. 
+
+  ```
+  @Entity
+  public class Member{
+     @Id @GeneratedValue
+     private Long id;
+
+     @OneToMany(mappedBy="member", fetch=FetchType.EAGER)
+     private List<Order> orders = new ArrayList<Order>();
+
+     
+  }
+
+  @Entity
+  @Table(name="ORDERS")
+  public class Order{
+    @Id @GeneratedValue
+    private Long id;
+
+    @ManyToOne
+    private Member member; 
+    ...
+  ```
+
+  예제 15.23의 회원과 예제 15.24의 주문 정보는 1:N, N:1 양방향 연관관계다.
+  그리고 회원이 참조하는 주문정보인 Member.orders를 즉시 로딩으로 설정했다.
+
+  (1) 즉시 로딩과 N+1
+  특정 회원 하나를 em.find() 메소드로 조회하면, 즉시 로딩을 설정한 주문정보도 함께 조회한다. 
+  em.find(Member.class, id);
+
+  실행된 SQL은 다음과 같다. 
+  SELECT M.*, O.*
+  FROM
+     MEMBER M
+  OUTER JOIN ORDERS O ON M.ID=O.MEMBER_ID
+
+  여기서 함께 조회하는 방법이 중요한데, SQL을 두 번 실행하는 것이 아니라 
+  조인을 사용해서 한 번의 SQL로 회원과 주문정보를 함께 조회한다.
+  여기까지만 보며 즉시 로딩이 상당히 좋아보인다.
+  문제는 JPQL을 사용할 때 발생한다.
+  다음 코드를 보자.
+
+  List<Member> members = em.createQuery("select m from Member m", Member.class).getResultList();
+
+  JPQL을 실행하면 JPA는 이것을 분석해서 SQL을 생성한다.
+  이 때는 즉시 로딩과 지연 로딩에 대해서 전혀 신경 쓰지 않고 JPQL만 사용해서 SQL을 생성한다. 
+  따라서 다음과 같은 SQL이 실행된다.
+
+  SELECT * FROM MEMBER
+
+  SQL의 실행 결과로 먼저 회원 엔티티를 애플리케이션에 로딩한다.
+  그런데 회원 엔티티와 연관된 주문 컬렉션이 즉시 로딩으로 설정되어 있으므로,
+  JPA는 주문 컬렉션을 즉시 로딩하려고 다음 SQL을 추가로 실행한다. 
+
+  SELECT * FROM ORDERS WHERE MEMBER_ID=?
+
+  조회된 회원이 하나면 이렇게 총 2번의 SQL을 실행하지만 조회된 회원이 5명이면 어떻게 될까? 
+
+  SELECT * FROM MEMBER
+  SELECT * FROM ORDERS WHERE MEMBER_ID=1
+  SELECT * FROM ORDERS WHERE MEMBER_ID=2
+  SELECT * FROM ORDERS WHERE MEMBER_ID=3
+  SELECT * FROM ORDERS WHERE MEMBER_ID=4
+  SELECT * FROM ORDERS WHERE MEMBER_ID=5
+
+  먼저 회원 조회 SQL로 5명의 회원 엔티티를 조회했다.
+  그리고 조회한 각각의 회원 엔티티와 연관된 주문 컬렉션을 즉시 조회하려고
+  총 5번의 SQL을 추가로 실행했다.
+  이처럼 처음 실행한 SQL의 결과 수만큼 추가로 SQL을 실행하는 것을 N+1 문제라 한다.
+  즉시 로딩은 JPSQL을 실행할 떄 N+1문제가 발생할 수 있다.
+
+  (2) 지연 로딩과 N+1
+  - 회원과 주문을 지연 로딩으로 설정하면 어떻게 될까?
+    방금 살펴본 즉시 로딩 시나리오를 지연 로딩으로 변경해도 N+1문제에서 자유로울 수는 없다. 
+    예제 15.25와 같이 회원이 참조하는 주문정보를 FetchType.LAZY로 지정해서 지연 로딩으로 설정해보자.
+
+    ```
+    @Entity
+    public class Member{
+        @Id @GeneratedValue
+        private Long id; 
+
+        @OneToMany(mappedBy="member", fetch=FetchType.LAZY)
+        private List<Order> orders = new ArrayList<Order>();
+        ... 
+    }
+
+    지연 로딩으로 설정하면 JPQL에서는 N+1문제가 발생하지 않는다. 
+    List<Member> members = 
+         em.createQuery("select m from Member m", Member.class)
+         .getResultList();
+
+    지연 로딩이므로 데이터베이스에서 회원만 조회된다.
+    따라서 다음 SQL만 실행되고 연관된 주문 컬렉션은 지연 로딩된다.
+    SELECT * FROM MEMBER
+
+    이후 비즈니스 로직에서 주문 컬렉션을 실제 사용할 때 지연 로딩이 발생한다.
+    firstMember = members.get(0);
+    firstMember.getOrders().size(); // 지연 로딩 초기화 
+
+    members.get(0)로 회원 하나만 조회해서 사용했기 때문에 firstMember.getOrders().size()를 호출하면서 실행되는 SQL은 다음과 같다.  
+    SELECT * FROM ORDERS WHERE MEMBER_ID=?
+
+    문제는 다음처럼 모든 회원에 대해 연관된 주문 컬렉션을 사용할 때 발생한다.
+    ```
+    for(Member member: members){
+         // 지연 로딩 초기화 
+         System.out.println("member=", member.getOrders().size());
+    }
+    ```
+    주문 컬렉션을 초기화하는 수만큼 다음 SQL이 실행될 수 있다.
+    회원이 5명이면 회원에 따른 주문도 5번 조회된다.
+
+    SELECT * FROM ORDERS WHERE MEMBER_ID=1 //회원과 연관된 주문
+    SELECT * FROM ORDERS WHERE MEMBER_ID=2 //회원과 연관된 주문
+    SELECT * FROM ORDERS WHERE MEMBER_ID=3 //회원과 연관된 주문
+    SELECT * FROM ORDERS WHERE MEMBER_ID=4 //회원과 연관된 주문
+    SELECT * FROM ORDERS WHERE MEMBER_ID=5 //회원과 연관된 주문
+
+    이것도 결국 N+1문제다. 지금까지 살펴본 것처럼 N+1문제는 즉시 로딩과 지연 로딩일 때
+    모두 발생할 수 있다. 
+    ```
 </details>
 
 
