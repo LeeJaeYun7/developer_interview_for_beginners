@@ -216,7 +216,59 @@
 
 -----------------------
 
+### 고아 객체란?
 
+<details>
+   <summary> 답안 보기 (👈 Click)</summary>
+<br />
+[참고: 자바 ORM 표준 JPA 프로그래밍 p.311] 
++ JPA는 부모 엔티티와 연관관계가 끊어진 자식 엔티티를 자동으로 삭제하는 기능을 제공하는데,
+  이것을 고아 객체(ORPHAN) 제거라 한다.
+  이 기능을 사용해서 부모 엔티티의 컬렉션에서 자식 엔티티의 참조만 제거하면,
+  자식 엔티티가 자동으로 삭제되도록 해보자. 
+
+  ```
+  @Entity
+  public class Parent{
+
+    @Id @GeneratedValue 
+    private Long id;
+
+    @OneToMany(mappedBy="parent", orphanRemoval=true)
+    private List<Child> children = new ArrayList<Child>();
+
+  ```
+
+  예제 8.19를 보면 고아 객체 제거 기능을 활성화 하기 위해 컬렉션에 orphanRemoval=true를 설정하자.
+  이제 컬렉션에서 제거한 엔티티는 자동으로 삭제된다. 
+  다음 사용 코드를 보자. 
+  Parent parent1 = em.find(Parent.class, id);
+  parent1.getChildren().remove(0); // 자식 엔티티를 컬렉션에서 제거 
+
+  실행 결과 SQL은 다음과 같다.
+  DELETE FROM CHILD WHERE ID=?
+
+  사용 코드를 보면 컬렉션에서 첫 번째 자식을 제거했다. 
+  orphanRemoval=true 옵션으로 인해 컬렉션에서 엔티티를 제거하면 데이터베이스의 데이터도 삭제된다.
+  고아 객체 제거 기능은 영속성 컨텍스트를 플러시할 때 적용되므로 플러시 시점에 DELETE SQL이 실행된다. 
+  모든 자식 엔티티를 제거하려면 다음 코드처럼 컬렉션을 비우면 된다. 
+  parent1.getChildren().clear(); 
+
+  고아 객체를 정리해보자. 고아 객체 제거는 참조가 제거된 엔티티는 다른 곳에서 참조하지 않는 고아 객체로 보고 삭제하는 기능이다. 
+  따라서 이 기능은 참조하는 곳이 하나일 때만 사용해야 한다.
+  쉽게 이야기해서 특정 엔티티가 개인 소유하는 엔티티에만 이 기능을 적용해야 한다. 
+  만약 삭제한 엔티티를 다른 곳에서도 참조한다면 문제가 발생할 수 있다.
+  이런 이유로 orphanRemoval은 @OneToOne, @OneToMany에만 사용할 수 있다. 
+
+  고아 객체 제거에는 기능이 하나 더 있는데 개념적으로 볼 때 부모를 제거하면 자식은 고아가 된다. 
+  따라서 부모를 제거하면 자식도 같이 제거된다.
+  이것은 CascadeType.REMOVE를 설정한 것과 같다. 
+  
+  
+</details>
+
+
+-----------------------
 
 
 
