@@ -1,6 +1,18 @@
 # F-lab 멘토링
 <br>
 
+-----------------------
+
+### DispatcherServlet이란?
+
+<details>
+   <summary> 답안 보기 (👈 Click)</summary>
+<br />
+[참고: https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframework/transaction/annotation/Transactional.html] 
++ 
+  
+</details>
+
 
 -----------------------
 
