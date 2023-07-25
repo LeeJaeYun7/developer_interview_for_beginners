@@ -16,6 +16,101 @@
 
 -----------------------
 
+### Spring Bean이란?
+
+<details>
+   <summary> 답안 보기 (👈 Click)</summary>
+<br />
+[참고: 토비의 스프링 p.101] 
++ 빈 또는 빈 오브젝트는 스프링이 IoC 방식으로 관리하는 오브젝트라는 뜻이다. 
+  주의할 점은 스프링을 사용하는 애플리케이션에서 만들어지는 모든 오브젝트가 다 빈은 아니라는 사실이다.
+  그 중에서 스프링이 직접 그 생성과 제어를 담당하는 오브젝트만을 빈이라고 부른다. 
+  
+</details>
+
+
+-----------------------
+
+### Bean을 만드는 방법은?
+
+<details>
+   <summary> 답안 보기 (👈 Click)</summary>
+<br />
+[참고: ] 
++ 개발자가 @Bean 어노테이션을 통해 직접 만드는 방법과 
+  스프링 컨테이너가 @ComponentScan을 통해 만드는 방법이 있다. 
+  
+</details>
+
+-----------------------
+### 같은 타입으로 Bean이 두 개 이상 등록된 경우, 원하는 Bean을 주입받는 방법은?
+
+<details>
+   <summary> 답안 보기 (👈 Click)</summary>
+<br />
+[참고: 김영한 스프링 기본] 
++ @Autowired 필드 명 매칭
+  @Qualifier -> @Qualifier끼리 매칭 -> 빈 이름 매칭
+  @Primary 사용 
+  이렇게 3가지 방법이 있다.
+  
+</details>
+
+-----------------------
+
+### `@Transactional`, `@Async` 등의 어노테이션을 사용할 때, Bean의 메서드는 어떻게 추가적인 동작을 할까 ?
+
+<details>
+   <summary> 답안 보기 (👈 Click)</summary>
+<br />
+[참고: ChatGPT ] 
++ @Transactional과 @Async는 Spring 프레임워크에서 제공하는 어노테이션으로, Bean의 메서드에 추가적인 동작을 할 수 있도록 도와줍니다.
+
+@Transactional:
+@Transactional 어노테이션은 메서드 실행을 트랜잭션 내에서 수행하도록 지정합니다. 이 어노테이션을 메서드에 추가하면, 메서드가 호출될 때 Spring은 자동으로 트랜잭션을 시작하고, 메서드가 정상적으로 실행되면 트랜잭션을 커밋(commit)하며, 예외가 발생하면 롤백(rollback)합니다. 따라서 메서드가 여러 개의 데이터베이스 작업 또는 다른 트랜잭션 작업을 수행해야 할 때 유용합니다. @Transactional은 메서드 레벨과 클래스 레벨에서 사용할 수 있습니다. 클래스 레벨에 사용할 경우 해당 클래스의 모든 메서드에 트랜잭션을 적용합니다.
+
+@Async:
+@Async 어노테이션은 메서드를 비동기적으로 실행하도록 지정합니다. 즉, 메서드를 호출하면 Spring은 해당 메서드를 별도의 스레드에서 실행하며, 호출자는 메서드의 완료를 기다리지 않고 다음 코드를 실행합니다. 이를 통해 비동기적인 작업을 처리할 수 있으며, 주로 시간이 오래 걸리는 작업이나 외부 서비스 호출 등에 유용합니다. 메서드가 void 형태이거나 Future<T>를 반환하는 경우 사용할 수 있습니다.
+
+이러한 어노테이션을 사용하려면 Spring 애플리케이션에서 다음과 같은 설정이 필요합니다:
+
+@Transactional:
+
+Spring의 트랜잭션 매니저가 적절히 구성되어 있어야 합니다. 일반적으로 @EnableTransactionManagement 어노테이션을 구성 클래스에 추가하여 활성화합니다.
+@Async:
+
+Spring의 비동기 실행을 위해 @EnableAsync 어노테이션을 구성 클래스에 추가하여 활성화합니다. 또한, 비동기 작업을 처리할 ThreadPoolTaskExecutor 빈을 구성해야 합니다.
+간단한 예시로 @Transactional과 @Async를 함께 사용하는 메서드를 보겠습니다:
+
+java
+Copy code
+@Service
+public class MyService {
+
+    @Autowired
+    private MyRepository myRepository;
+
+    @Transactional
+    public void doTransactionalMethod() {
+        // 여러 데이터베이스 작업을 수행하는 메서드
+        // 이 메서드가 예외를 발생시키면 트랜잭션이 롤백됩니다.
+        // 그렇지 않으면 커밋됩니다.
+    }
+
+    @Async
+    public void doAsyncMethod() {
+        // 비동기적으로 실행되는 메서드
+        // 메서드 호출자는 이 메서드의 실행을 기다리지 않고 다음 코드를 실행합니다.
+    }
+}
+이렇게 하면 Spring은 doTransactionalMethod를 트랜잭션 내에서 실행하고, doAsyncMethod를 비동기적으로 실행합니다.
+  
+</details>
+
+-----------------------
+
+
+
 ### @Transactional이란?
 
 <details>
